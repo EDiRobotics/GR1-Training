@@ -3,6 +3,8 @@ Reproduced Training script for GR-1: "Unleashing Large-Scale Video Generative Pr
 
 The original implementation is [here](https://github.com/bytedance/GR-1) but there is no training script.
 
+Star and cite this repo (and of course the original implementation) if you find it is helpful!
+
 ## Installation
 Setup conda environment and install the CALVIN benchmark. 
 ```
@@ -45,10 +47,10 @@ chmod a+x hfd.sh
 ./hfd.sh StarCycle/calvin_lmdb --dataset --tool aria2c -x 4
 ```
 ## Start Training & Evaluation
-The configuration parameters are saved in `config.json`.  You need to download the weights of the ViT visual encoder with
-```
-wget https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_base.pth
-```
+**The configuration parameters are saved in `config.json`. **
+
+You need to download the [weights](https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_base.pth) of the ViT visual encoder to the GR1-Training folder.
+
 You can train from scratch or from a pretrained policy weight. The official weight is [here](https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_base.pth), but directly finetuning this may need several epochs to recover the original performance (I try to mimic their training pipeline, but my implementation is still not the same). To use their weight, you need to slightly modify the checkpoint loading code in `Main.py`.
 
 You can also use my finetuned weight, which is included in the [calvin_lmdb dataset](https://huggingface.co/datasets/StarCycle/calvin_lmdb) in HuggingFace.
@@ -64,6 +66,9 @@ Now you can simply launch training with
 python Main.py
 ```
 Before the training starts, it will first evaluate the policy. `Main.py` will also evaluate the policy for 1000 times after finishing 1 epoch of training. There is no seperated evaluation code.
+
+## Detailed Analysis of the Network and API
+Please refer to this [issue](https://github.com/bytedance/GR-1/issues/4)
 
 ## Multi-GPU Training & Evaluation
 The code here is simplified and easy to adapt to any training pipeline. A more efficient multi-GPU training & evaluation code is available by contacting zhuohengli@foxmail.com.
@@ -92,3 +97,14 @@ Learning rate
 
 ## Acknowledgement
 Great thanks to [@bdrhtw](https://github.com/bdrhtw) to make it open-source!
+
+## Contact Me
+Email: zhuohengli@foxmail.com
+
+Find StarCycle in HuggiingFace LeRobot server: [![Discord](https://dcbadge.vercel.app/api/server/C5P34WJ68S?style=flat)](https://discord.gg/s3KuuzsPFb) (try to merge this repo to LeRobot)
+
+Wechat group for GR1 reproduction: 
+
+![图片](https://github.com/EDiRobotics/GR1-Training/assets/33491471/3c03f32a-d6f3-4990-b2a3-45fe1ab09bb9)
+
+Or feel free to open an issue here.
