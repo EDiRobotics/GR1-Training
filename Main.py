@@ -38,7 +38,7 @@ def train(train_prefetcher, test_prefetcher, preprocessor, model, env, eva, eval
     eval_steps = train_dataset_len // test_dataset_len
     avg_reward = 0.0
     for epoch in range(cfg['num_epochs']):
-        if epoch % cfg['save_epochs'] == 0:
+        if epoch != 0 and epoch % cfg['save_epochs'] == 0:
             model.eval()
             avg_reward = torch.tensor(evaluate_policy(
                 eva, 
@@ -89,7 +89,7 @@ def train(train_prefetcher, test_prefetcher, preprocessor, model, env, eva, eval
                 loss['rgb_static'] = masked_loss(pred['obs_preds'], pred['obs_targets'], batch['mask'], cfg['skip_frame'], F.mse_loss)
                 loss['rgb_gripper'] = masked_loss(pred['obs_hand_preds'], pred['obs_hand_targets'], batch['mask'], cfg['skip_frame'], F.mse_loss)
                 loss['action_arm'] = masked_loss(pred[ 'arm_action_preds'], batch['actions'][:, :, :6], batch['mask'], 0, F.smooth_l1_loss)
-                loss['action_gripper'] = masked_loss(F.sigmoid(pred['gripper_action_preds']), batch['actions'][:, :, -1:], batch['mask'], 0, F.binary_cross_entropy)
+                loss['action_gripper'] = masked_loss(pred['gripper_action_preds'], batch['actions'][:, :, -1:], batch['mask'], 0, F.binary_cross_entropy_with_logits)
                 total_loss = loss['rgb_static'] + loss['rgb_gripper'] +100*loss['action_arm'] + loss['action_gripper'] # TODO
             scaler.scale(total_loss / cfg['gradient_accumulation_steps']).backward()
             if (batch_idx + 1) % cfg['gradient_accumulation_steps'] == 0:
@@ -116,7 +116,7 @@ def train(train_prefetcher, test_prefetcher, preprocessor, model, env, eva, eval
                     loss['rgb_static'] = masked_loss(pred['obs_preds'], pred['obs_targets'], batch['mask'], cfg['skip_frame'], F.mse_loss)
                     loss['rgb_gripper'] = masked_loss(pred['obs_hand_preds'], pred['obs_hand_targets'], batch['mask'], cfg['skip_frame'], F.mse_loss)
                     loss['action_arm'] = masked_loss(pred[ 'arm_action_preds'], batch['actions'][:, :, :6], batch['mask'], 0, F.smooth_l1_loss)
-                    loss['action_gripper'] = masked_loss(F.sigmoid(pred['gripper_action_preds']), batch['actions'][:, :, -1:], batch['mask'], 0, F.binary_cross_entropy)
+                    loss['action_gripper'] = masked_loss(pred['gripper_action_preds'], batch['actions'][:, :, -1:], batch['mask'], 0, F.binary_cross_entropy_with_logits)
                     for key in eval_log_loss:
                         eval_log_loss[key] += loss[key].detach() / cfg['print_steps'] * eval_steps
 
