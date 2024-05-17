@@ -47,7 +47,7 @@ chmod a+x hfd.sh
 ./hfd.sh StarCycle/calvin_lmdb --dataset --tool aria2c -x 4
 ```
 ## Start Training & Evaluation
-**The configuration parameters are saved in `config.json`. **
+**The configuration parameters are saved in `config.json`**
 
 You need to download the [weights](https://dl.fbaipublicfiles.com/mae/pretrain/mae_pretrain_vit_base.pth) of the ViT visual encoder to the GR1-Training folder.
 
@@ -101,7 +101,8 @@ Great thanks to [@bdrhtw](https://github.com/bdrhtw) to make it open-source!
 ## Contact Me
 Email: zhuohengli@foxmail.com
 
-Find StarCycle in HuggiingFace LeRobot server: [![Discord](https://dcbadge.vercel.app/api/server/C5P34WJ68S?style=flat)](https://discord.gg/s3KuuzsPFb) (try to merge this repo to LeRobot)
+Find StarCycle in HuggiingFace LeRobot server: [![Discord](https://dcbadge.vercel.app/api/server/C5P34WJ68S?style=flat)](https://discord.gg/s3KuuzsPFb)
+(try to merge this repo to LeRobot)
 
 Wechat group for GR1 reproduction: 
 
