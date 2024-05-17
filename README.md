@@ -1,5 +1,5 @@
 # GR1-Training
-Reproduced Training script for GR-1: "Unleashing Large-Scale Video Generative Pre-training for Visual Robot Manipulation". It's current SOTA in [CALVIN Manipulation Benchmark](http://calvin.cs.uni-freiburg.de/) without using depth information.
+Reproduced training script for GR-1: "Unleashing Large-Scale Video Generative Pre-training for Visual Robot Manipulation". It's current SOTA in [CALVIN Manipulation Benchmark](http://calvin.cs.uni-freiburg.de/) without using depth information.
 
 The original implementation is [here](https://github.com/bytedance/GR-1) but there is no training script.
 
