@@ -101,7 +101,7 @@ Great thanks to [@bdrhtw](https://github.com/bdrhtw) to make it open-source!
 ## Contact Me
 Email: zhuohengli@foxmail.com
 
-Find StarCycle in HuggiingFace LeRobot server: [![Discord](https://dcbadge.vercel.app/api/server/C5P34WJ68S?style=flat)](https://discord.gg/s3KuuzsPFb)
+Find Zhuoheng Li in HuggiingFace LeRobot server: [![Discord](https://dcbadge.vercel.app/api/server/C5P34WJ68S?style=flat)](https://discord.gg/s3KuuzsPFb)
 (try to merge this repo to LeRobot)
 
 Wechat group for GR1 reproduction: 
