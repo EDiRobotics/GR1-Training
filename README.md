@@ -20,7 +20,7 @@ sed -i 's/pytorch-lightning==1.8.6/pytorch-lightning/g' requirements.txt
 sed -i 's/torch==1.13.1/torch/g' requirements.txt
 cd ..
 sh ./install.sh
-cd ..```
+cd ..
 ```
 Install this repository:
 ```
