@@ -76,7 +76,7 @@ def train(train_prefetcher, test_prefetcher, preprocessor, model, env, eva, eval
         batch, load_time = train_prefetcher.next()
         while batch is not None:
             model.train()
-            with autocast():
+            with autocast(dtype=torch.bfloat16):
                 rgb_static, rgb_gripper = preprocessor.rgb_process(batch['rgb_static'], batch['rgb_gripper'], train=True)
                 pred = model(
                     rgb=rgb_static,
