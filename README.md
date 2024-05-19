@@ -40,7 +40,7 @@ python calvin2lmdb.py --input_dir ./calvin_debug_dataset --output_dir ./calvin_l
 ```
 You can also download the processed LMDB dataset (ABC->D split) from Huggingface. The LMDB dataset only takes ~23GB, while the original ABC->D split takes 517GB. In this example, I use the tool of [HF-Mirror](https://hf-mirror.com/). You can set the environment variable `export HF_ENDPOINT=https://hf-mirror.com` to avoid the connection problem in some regions.
 ```
-rm calvin_lmdb
+rm -rf calvin_lmdb
 apt install git-lfs aria2
 wget https://hf-mirror.com/hfd/hfd.sh
 chmod a+x hfd.sh
