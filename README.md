@@ -5,6 +5,11 @@ The original implementation is [here](https://github.com/bytedance/GR-1) but the
 
 Star and cite this repo (and of course the original implementation) if you find it is helpful!
 
+## News
+[In progress] Try the official padding instead of RandomResizedCrop
+
+[2024.5.16] Initial data, training & evaluation code released.
+
 ## Installation
 Setup conda environment and install the CALVIN benchmark. 
 ```
