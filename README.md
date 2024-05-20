@@ -8,7 +8,7 @@ Star and cite this repo (and of course the original implementation) if you find 
 ## News
 [In progress] Try the official padding instead of RandomResizedCrop
 
-[2024.5.16] Initial data, training & evaluation code released.
+[2024.5.16] Initial data, checkpoint, training & evaluation code released.
 
 ## Installation
 Setup conda environment and install the CALVIN benchmark. 
