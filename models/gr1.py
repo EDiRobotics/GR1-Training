@@ -19,7 +19,7 @@ import torch.nn as nn
 import transformers
 from flamingo_pytorch import PerceiverResampler
 
-from models.trajectory_gpt2 import GPT2Model
+from transformers import GPT2Model
 from models.vision_transformer import Block
 from models.transformer_utils import get_2d_sincos_pos_embed
 
@@ -33,6 +33,7 @@ class GR1(nn.Module):
             act_dim,
             hidden_size,
             sequence_length,
+            chunk_size,
             training_target,
             img_feat_dim,
             patch_feat_dim,
@@ -46,6 +47,7 @@ class GR1(nn.Module):
         self.state_dim = state_dim
         self.act_dim = act_dim
         self.sequence_length = sequence_length
+        self.chunk_size = chunk_size
 
         # GPT
         self.hidden_size = hidden_size
@@ -117,7 +119,9 @@ class GR1(nn.Module):
         self.embed_ln = nn.LayerNorm(hidden_size)
 
         # Action query token
-        self.action_queries = nn.Embedding(1, hidden_size) # arm + gripper
+        self.action_queries = nn.Embedding(1, hidden_size) # arm + gripper, weight from bytedance
+        self.action_chunk_queries = nn.Embedding(chunk_size, hidden_size) 
+        self.action_chunk_queries.weight.data.fill_(0) # finetune it from zero weight
 
         # Observation query token
         self.obs_queries = nn.Embedding(self.n_patch_latents + 1, self.hidden_size)
@@ -166,7 +170,7 @@ class GR1(nn.Module):
         arm_state_embeddings = self.embed_arm_state(arm_state.view(batch_size, sequence_length, self.state_dim-1))
         gripper_state_embeddings = self.embed_gripper_state(gripper_state)
         state_embeddings = torch.cat((arm_state_embeddings, gripper_state_embeddings), dim=2)
-        state_embeddings = self.embed_state(state_embeddings)  # (b, l, h)
+        state_embeddings = self.embed_state(state_embeddings)  # (b, t, h)
 
         # Embed language
         lang_embeddings = self.model_clip.encode_text(language)
@@ -175,19 +179,19 @@ class GR1(nn.Module):
     
         # Get obs and patch feature from MAE
         obs_embeddings, patch_embeddings = self.model_mae(
-            rgb.view(batch_size*sequence_length, c, h, w))  # (b * l, img_feat_dim), (b * l, n_patches, patch_feat_dim)
-        obs_embeddings = obs_embeddings.view(batch_size, sequence_length, -1)  # (b, l, img_feat_dim)
+            rgb.view(batch_size*sequence_length, c, h, w))  # (b * t, img_feat_dim), (b * t, n_patches, patch_feat_dim)
+        obs_embeddings = obs_embeddings.view(batch_size, sequence_length, -1)  # (b, t, img_feat_dim)
         if self.use_hand_rgb:
             hand_obs_embeddings, hand_patch_embeddings = self.model_mae(
                 hand_rgb.view(batch_size*sequence_length, c, h, w))
-            hand_obs_embeddings = hand_obs_embeddings.view(batch_size, sequence_length, -1)  # (b, l, img_feat_dim)
+            hand_obs_embeddings = hand_obs_embeddings.view(batch_size, sequence_length, -1)  # (b, t, img_feat_dim)
         if self.fwd_pred:
             p = self.patch_size
             h_p = h // p
             w_p = w // p
             rgb = rgb.reshape(shape=(batch_size, sequence_length, 3, h_p, p, w_p, p)) 
             obs_targets = rgb.permute(0, 1, 3, 5, 4, 6, 2)
-            obs_targets = obs_targets.reshape(shape=(batch_size, sequence_length, h_p * w_p, (p**2) * 3))  # (b, l, n_patches, p*p*3)
+            obs_targets = obs_targets.reshape(shape=(batch_size, sequence_length, h_p * w_p, (p**2) * 3))  # (b, t, n_patches, p*p*3)
             if not self.without_norm_pixel_loss:
                 # norm the target 
                 obs_targets = (obs_targets - obs_targets.mean(dim=-1, keepdim=True)
@@ -195,29 +199,29 @@ class GR1(nn.Module):
             if self.fwd_pred_hand:
                 hand_rgb = hand_rgb.reshape(shape=(batch_size, sequence_length, 3, h_p, p, w_p, p))
                 obs_hand_targets = hand_rgb.permute(0, 1, 3, 5, 4, 6, 2)
-                obs_hand_targets = obs_hand_targets.reshape(shape=(batch_size, sequence_length, h_p * w_p, (p**2)*3))  # (b, l, n_patches, p*p*3)
+                obs_hand_targets = obs_hand_targets.reshape(shape=(batch_size, sequence_length, h_p * w_p, (p**2)*3))  # (b, t, n_patches, p*p*3)
                 if not self.without_norm_pixel_loss:
                     # norm the target 
                     obs_hand_targets = (obs_hand_targets - obs_hand_targets.mean(dim=-1, keepdim=True)
                         ) / (obs_hand_targets.var(dim=-1, unbiased=True, keepdim=True).sqrt() + 1e-6)            
 
         # Use resampler to process patch embeddings
-        patch_embeddings = patch_embeddings.unsqueeze(1)  # (b * l, 1, n_patches, patch_feat_dim)
-        patch_embeddings = self.perceiver_resampler(patch_embeddings)  # (b * l, 1, n_patch_latents, patch_feat_dim)
-        patch_embeddings = patch_embeddings.squeeze(1)  # (b * l, n_patch_latents, patch_feat_dim)
-        patch_embeddings = patch_embeddings.view(batch_size, sequence_length, self.n_patch_latents, self.patch_feat_dim)  # (b, l, n_patch_latents, patch_feat_dim)
+        patch_embeddings = patch_embeddings.unsqueeze(1)  # (b * t, 1, n_patches, patch_feat_dim)
+        patch_embeddings = self.perceiver_resampler(patch_embeddings)  # (b * t, 1, n_patch_latents, patch_feat_dim)
+        patch_embeddings = patch_embeddings.squeeze(1)  # (b * t, n_patch_latents, patch_feat_dim)
+        patch_embeddings = patch_embeddings.view(batch_size, sequence_length, self.n_patch_latents, self.patch_feat_dim)  # (b, t, n_patch_latents, patch_feat_dim)
         if self.use_hand_rgb:
             hand_patch_embeddings = hand_patch_embeddings.unsqueeze(1)
             hand_patch_embeddings = self.perceiver_resampler(hand_patch_embeddings)
             hand_patch_embeddings = hand_patch_embeddings.squeeze(1)
-            hand_patch_embeddings = hand_patch_embeddings.view(batch_size, sequence_length, self.n_patch_latents, self.patch_feat_dim)  # (b, l, n_patch_latents, patch_feat_dim)
+            hand_patch_embeddings = hand_patch_embeddings.view(batch_size, sequence_length, self.n_patch_latents, self.patch_feat_dim)  # (b, t, n_patch_latents, patch_feat_dim)
         
         # Embed images and patches
-        obs_embeddings = self.embed_img(obs_embeddings.float())  # (b, l, h)
-        patch_embeddings = self.embed_patch(patch_embeddings.float())  # (b, l, n_patch_latents, h)
+        obs_embeddings = self.embed_img(obs_embeddings.float())  # (b, t, h)
+        patch_embeddings = self.embed_patch(patch_embeddings.float())  # (b, t, n_patch_latents, h)
         if self.use_hand_rgb:
-            hand_obs_embeddings = self.embed_hand_img(hand_obs_embeddings.float())  # (b, l, h)
-            hand_patch_embeddings = self.embed_hand_patch(hand_patch_embeddings.float())  # (b, l, n_patch_latents, h)
+            hand_obs_embeddings = self.embed_hand_img(hand_obs_embeddings.float())  # (b, t, h)
+            hand_patch_embeddings = self.embed_hand_patch(hand_patch_embeddings.float())  # (b, t, n_patch_latents, h)
         
         # Add timestep embeddings
         time_embeddings = self.embed_timestep.weight  # (l, h)
@@ -237,20 +241,21 @@ class GR1(nn.Module):
                 (lang_embeddings, 
                  state_embeddings, 
                  patch_embeddings, 
-                 obs_embeddings), dim=2)  # (b, l, n_tokens, h)
+                 obs_embeddings), dim=2)  # (b, t, n_tokens, h)
         if self.use_hand_rgb:
             hand_obs_embeddings = hand_obs_embeddings.view(batch_size, sequence_length, 1, self.hidden_size)
             stacked_inputs = torch.cat(
                 (stacked_inputs,
                  hand_patch_embeddings, 
-                 hand_obs_embeddings), dim=2)  # (b, l, n_tokens, h)
+                 hand_obs_embeddings), dim=2)  # (b, t, n_tokens, h)
         if self.act_pred:
             action_queries = self.action_queries.weight  # (1, h)
-            action_queries = action_queries.view(1, 1, 1, self.hidden_size).repeat(batch_size, sequence_length, 1, 1)  # (b, l, 1, h)
-            stacked_inputs = torch.cat((stacked_inputs, action_queries), dim=2)  # (b, l, n_tokens, h)
+            action_chunk_queries = self.action_chunk_queries.weight + action_queries # (chunk_size, h)
+            action_chunk_queries = action_chunk_queries.view(1, 1, self.chunk_size, self.hidden_size).repeat(batch_size, sequence_length, 1, 1)  # (b, t, chunk_size, h)
+            stacked_inputs = torch.cat((stacked_inputs, action_chunk_queries), dim=2)  # (b, t, n_tokens, h)
         if self.fwd_pred:
             obs_queries = self.obs_queries.weight  # (n_patch_latents + 1, h)
-            obs_queries = obs_queries.view(1, 1, self.n_patch_latents + 1, self.hidden_size).repeat(batch_size, sequence_length, 1, 1)  # (b, l, n_patch_latents + 1, h)
+            obs_queries = obs_queries.view(1, 1, self.n_patch_latents + 1, self.hidden_size).repeat(batch_size, sequence_length, 1, 1)  # (b, t, n_patch_latents + 1, h)
             stacked_inputs = torch.cat((stacked_inputs, obs_queries), dim=2)
             if self.fwd_pred_hand:
                 obs_hand_queries = self.obs_hand_queries.weight # 10, h
@@ -268,10 +273,10 @@ class GR1(nn.Module):
         if self.use_hand_rgb:
             n_tokens += n_hand_obs_tokens
             n_tokens += n_hand_patch_tokens
-        n_act_pred_tokens = 1
+        n_act_pred_tokens = self.chunk_size
         if self.act_pred:
             act_query_token_start_i = n_tokens
-            n_tokens += 1
+            n_tokens += self.chunk_size
         if self.fwd_pred:
             obs_query_token_start_i = n_tokens
             n_tokens += (n_patch_tokens + n_obs_tokens)
@@ -292,13 +297,13 @@ class GR1(nn.Module):
             stacked_attention_mask = stacked_attention_mask.repeat(
                 1, 1, n_lang_tokens + n_state_tokens + n_patch_tokens + n_obs_tokens)
         if self.act_pred:
-            act_query_attention_mask = torch.zeros((batch_size, sequence_length, n_act_pred_tokens), dtype=torch.long).cuda()
+            act_query_attention_mask = torch.zeros((batch_size, sequence_length, n_act_pred_tokens), dtype=torch.long, device=stacked_inputs.device)
             stacked_attention_mask = torch.cat((stacked_attention_mask, act_query_attention_mask), dim=2)
         if self.fwd_pred:
-            obs_query_attention_mask = torch.zeros((batch_size, sequence_length, n_patch_tokens + n_obs_tokens), dtype=torch.long).cuda()
+            obs_query_attention_mask = torch.zeros((batch_size, sequence_length, n_patch_tokens + n_obs_tokens), dtype=torch.long, device=stacked_inputs.device)
             stacked_attention_mask = torch.cat((stacked_attention_mask, obs_query_attention_mask), dim=2)
             if self.fwd_pred_hand:
-                obs_hand_query_attention_mask = torch.zeros((batch_size, sequence_length, n_patch_tokens + n_obs_tokens), dtype=torch.long).cuda()
+                obs_hand_query_attention_mask = torch.zeros((batch_size, sequence_length, n_patch_tokens + n_obs_tokens), dtype=torch.long, device=stacked_inputs.device)
                 stacked_attention_mask = torch.cat((stacked_attention_mask, obs_hand_query_attention_mask), dim=2)
         stacked_attention_mask = stacked_attention_mask.reshape(batch_size, n_tokens * sequence_length)
 
@@ -312,11 +317,11 @@ class GR1(nn.Module):
 
         # Action prediction
         if self.act_pred:
-            action_embedding = x[:, :, act_query_token_start_i]
+            action_embedding = x[:, :, act_query_token_start_i:(act_query_token_start_i+self.chunk_size)]
             for pred_act_mlp in self.pred_act_mlps:
                 action_embedding = pred_act_mlp(action_embedding)
-            arm_action_preds = self.pred_arm_act(action_embedding)  # (b, l, act_dim - 1)
-            gripper_action_preds = self.pred_gripper_act(action_embedding)  # (b, l, 1)
+            arm_action_preds = self.pred_arm_act(action_embedding)  # (b, t, chunk_size, act_dim - 1)
+            gripper_action_preds = self.pred_gripper_act(action_embedding)  # (b, t, chunk_size, 1)
             
         # Forward prediction
         if self.fwd_pred:

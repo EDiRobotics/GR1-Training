@@ -31,6 +31,7 @@ import sys
 import time
 import copy
 from moviepy.editor import ImageSequenceClip
+from accelerate import Accelerator
 
 # This is for using the locally installed repo clone when using slurm
 from calvin_agent.models.calvin_base_model import CalvinBaseModel
@@ -53,6 +54,10 @@ from tqdm.auto import tqdm
 
 from evaluation.calvin_evaluation import GR1CalvinEvaluation
 from utils.calvin_utils import print_and_save
+import clip
+from PreProcess import PreProcess
+import models.vision_transformer as vits
+from models.gr1 import GR1 
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +70,16 @@ def make_env(dataset_path, observation_space, device):
     env = CalvinEnvWrapperRaw(val_folder, observation_space, device)
     return env
 
-def evaluate_policy(model, env, eval_sr_path, eval_result_path, num_sequences, ep_len, eval_dir=None, debug=False):
+
+def evaluate_policy(model, env, eval_sr_path, eval_result_path, ep_len, num_sequences, num_procs, procs_id, eval_dir=None, debug=False):
     conf_dir = Path(f"{CALVIN_ROOT}/calvin_models") / "conf"
     task_cfg = OmegaConf.load(conf_dir / "callbacks/rollout/tasks/new_playtable_tasks.yaml")
     task_oracle = hydra.utils.instantiate(task_cfg)
     val_annotations = OmegaConf.load(conf_dir / "annotations/new_playtable_validation.yaml")
     eval_dir = get_log_dir(eval_dir)
     eval_sequences = get_sequences(num_sequences)
+    num_seq_per_procs = num_sequences // num_procs
+    eval_sequences = eval_sequences[num_seq_per_procs*procs_id:num_seq_per_procs*(procs_id+1)]
 
     results = []
     if not debug:
@@ -79,7 +87,7 @@ def evaluate_policy(model, env, eval_sr_path, eval_result_path, num_sequences, e
 
     sequence_i = 0
     for initial_state, eval_sequence in eval_sequences:
-        result = evaluate_sequence(env, model, task_oracle, ep_len, initial_state, eval_sequence, val_annotations, debug, eval_dir, sequence_i)
+        result = evaluate_sequence(env, model, task_oracle, initial_state, eval_sequence, val_annotations, debug, eval_dir, sequence_i, ep_len)
         results.append(result)
         if not debug:
             success_list = count_success(results)
@@ -99,7 +107,7 @@ def evaluate_policy(model, env, eval_sr_path, eval_result_path, num_sequences, e
     return results
 
 
-def evaluate_sequence(env, model, task_checker, ep_len, initial_state, eval_sequence, val_annotations, debug, eval_dir, sequence_i):
+def evaluate_sequence(env, model, task_checker, initial_state, eval_sequence, val_annotations, debug, eval_dir, sequence_i, ep_len):
     robot_obs, scene_obs = get_env_state_for_initial_condition(initial_state)
     env.reset(robot_obs=robot_obs, scene_obs=scene_obs)
     success_counter = 0
@@ -110,7 +118,7 @@ def evaluate_sequence(env, model, task_checker, ep_len, initial_state, eval_sequ
         print(f"Evaluating sequence: {' -> '.join(eval_sequence)}")
         print("Subtask: ", end="")
     for subtask_i, subtask in enumerate(eval_sequence):
-        success = rollout(env, model, task_checker, ep_len, subtask, val_annotations, debug, eval_dir, subtask_i, sequence_i)
+        success = rollout(env, model, task_checker, subtask, val_annotations, debug, eval_dir, subtask_i, sequence_i, ep_len)
         if success:
             success_counter += 1
         else:
@@ -118,7 +126,7 @@ def evaluate_sequence(env, model, task_checker, ep_len, initial_state, eval_sequ
     return success_counter
 
 
-def rollout(env, model, task_oracle, ep_len, subtask, val_annotations, debug, eval_dir, subtask_i, sequence_i):
+def rollout(env, model, task_oracle, subtask, val_annotations, debug, eval_dir, subtask_i, sequence_i, ep_len):
     if debug:
         print(f"{subtask} ", end="")
         time.sleep(0.5)
@@ -128,9 +136,13 @@ def rollout(env, model, task_oracle, ep_len, subtask, val_annotations, debug, ev
     start_info = env.get_info()
     if debug:
         img_list = []
+    unfinished = 0
     for step in range(ep_len):
-        action = model.step(obs, lang_annotation)
-        obs, _, _, current_info = env.step(action)
+        if unfinished == 0:
+            action = model.step(obs, lang_annotation)
+            unfinished = action.shape[0]
+        obs, _, _, current_info = env.step(action[-unfinished])
+        unfinished -= 1
         if debug:
             img_copy = copy.deepcopy(obs['rgb_obs']['rgb_static'])
             img_list.append(img_copy)
@@ -147,3 +159,96 @@ def rollout(env, model, task_oracle, ep_len, subtask, val_annotations, debug, ev
         clip = ImageSequenceClip(img_list, fps=30)
         clip.write_gif(os.path.join(eval_dir, f'{sequence_i}-{subtask_i}-{subtask}-fail.gif'), fps=30)
     return False
+
+
+def main():
+    # Preparation
+    cfg = json.load(open('configs.json'))
+    acc = Accelerator()
+    device = acc.device
+    preprocessor = PreProcess(
+        cfg['rgb_static_pad'],
+        cfg['rgb_gripper_pad'],
+        cfg['rgb_shape'],
+        cfg['rgb_mean'],
+        cfg['rgb_std'],
+        device,
+    )
+    model_clip, _ = clip.load(cfg['clip_backbone'], device=device) 
+    model_mae = vits.__dict__['vit_base'](patch_size=16, num_classes=0).to(device)
+    checkpoint = torch.load(cfg['mae_ckpt'])
+    model_mae.load_state_dict(checkpoint['model'], strict=False)
+    model = GR1(
+        model_clip,
+        model_mae,
+        state_dim=cfg['state_dim'],
+        act_dim=cfg['act_dim'],
+        hidden_size=cfg['embed_dim'],
+        sequence_length=cfg['seq_len'],
+        chunk_size=cfg['chunk_size'],
+        training_target=['act_pred', 'fwd_pred', 'fwd_pred_hand'],
+        img_feat_dim=cfg['img_feat_dim'],
+        patch_feat_dim=cfg['patch_feat_dim'],
+        lang_feat_dim=cfg['lang_feat_dim'],
+        resampler_params={
+            'depth': cfg['resampler_depth'],
+            'dim_head': cfg['resampler_dim_head'],
+            'heads': cfg['resampler_heads'],
+            'num_latents': cfg['resampler_num_latents'],
+            'num_media_embeds': cfg['resampler_num_media_embeds'],
+        },
+        without_norm_pixel_loss=False,
+        use_hand_rgb=True,
+        n_layer=cfg['n_layer'],
+        n_head=cfg['n_head'],
+        n_inner=4*cfg['embed_dim'],
+        activation_function=cfg['activation_function'],
+        n_positions=cfg['n_positions'],
+        resid_pdrop=cfg['dropout'],
+        attn_pdrop=cfg['dropout'],
+    ).to(device)  # for fused optimizer
+    if cfg['load_bytedance_ckpt']:
+        model.load_state_dict(torch.load(cfg['bytedance_ckpt_path'])['state_dict'], strict=False)
+        acc.print('load ', cfg['bytedance_ckpt_path'] )
+    elif os.path.isfile(cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch'])):
+        state_dict = torch.load(cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']))['state_dict'] 
+        model.load_state_dict(state_dict, strict=False)
+        acc.print('load ', cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']))
+    if cfg['compile_model']:
+        model = torch.compile(model)
+    if os.path.isfile(cfg['save_path']+'step.json'):
+        with open(cfg['save_path']+'step.json', 'r') as json_file:
+            step = json.load(open(cfg['save_path']+'step.json'))
+    else:
+        step = 0
+    model = acc.prepare(model, device_placement=[True])
+    observation_space = {
+        'rgb_obs': ['rgb_static', 'rgb_gripper'], 
+        'depth_obs': [], 
+        'state_obs': ['robot_obs'], 
+        'actions': ['rel_actions'], 
+        'language': ['language']}
+    eval_dir = cfg['save_path']+f'eval{torch.cuda.current_device()}/'
+    os.makedirs(eval_dir, exist_ok=True)
+    env = make_env('./fake_dataset', observation_space, device)
+    eva = GR1CalvinEvaluation(model, cfg, preprocessor, device)
+    model.eval()
+    avg_reward = torch.tensor(evaluate_policy(
+        eva, 
+        env,
+        cfg['save_path']+'success_rate.txt', 
+        cfg['save_path']+'result.txt', 
+        cfg['ep_len'],
+        cfg['num_sequences'],
+        acc.num_processes,
+        acc.process_index,
+        eval_dir,
+        debug=False
+    )).float().mean().to(device)
+    acc.wait_for_everyone()
+    avg_reward = acc.gather_for_metrics(avg_reward).mean()
+    if acc.is_main_process:
+        print('average success rate ', avg_reward)
+
+if __name__ == "__main__":
+    main()

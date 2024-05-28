@@ -12,4 +12,6 @@ einops
 lmdb 
 opencv-python
 av
+transformers
+accelerate
 git+https://github.com/openai/CLIP.git

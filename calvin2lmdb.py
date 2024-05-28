@@ -1,6 +1,5 @@
 import os
 import io
-import argparse
 import lmdb
 from pickle import dumps, loads
 import numpy as np
@@ -10,10 +9,15 @@ from torchvision.io import encode_jpeg
 import clip
 from einops import rearrange, repeat
 
-def save_to_lmdb(output_dir, input_dir):
-    env = lmdb.open(output_dir, map_size=int(3e12), readonly=False, lock=False) # maximum size of memory map is 3TB
-    annotations = np.load(os.path.join(input_dir, 'lang_annotations/auto_lang_ann.npy'), allow_pickle=True).tolist()['language']['ann']
-    start_end_ids = np.load(os.path.join(input_dir, 'lang_annotations/auto_lang_ann.npy'), allow_pickle=True).tolist()['info']['indx']
+if __name__ == '__main__':
+    annotations = np.load('./auto_lang_ann.npy', allow_pickle=True).tolist()['language']['ann']
+    start_end_ids = np.load('./auto_lang_ann.npy', allow_pickle=True).tolist()['info']['indx']
+    model_clip, _ = clip.load('ViT-B/32', device='cuda:0')
+    data_dir = './calvin_lmdb'
+    if not os.path.exists(data_dir): 
+        os.makedirs(data_dir)
+    env = lmdb.open(data_dir, map_size=int(3e12)) # maximum size of memory map is 3TB
+
     with env.begin(write=True) as txn:
         if txn.get('cur_step'.encode()) is not None:
             cur_step = loads(txn.get('cur_step'.encode())) + 1
@@ -24,7 +28,7 @@ def save_to_lmdb(output_dir, input_dir):
 
         for index, (start, end) in enumerate(start_end_ids):
             print(f'{index/len(start_end_ids)}')
-            inst = annotations[index]
+            inst = annotations[index] 
             txn.put(f'inst_{cur_episode}'.encode(), dumps(inst))
             with torch.no_grad():
                 inst_token = clip.tokenize(inst)
@@ -32,7 +36,7 @@ def save_to_lmdb(output_dir, input_dir):
             txn.put(f'inst_token_{cur_episode}'.encode(), dumps(inst_token[0]))
             txn.put(f'inst_emb_{cur_episode}'.encode(), dumps(inst_emb[0]))
             for i in range(start, end+1):
-                frame = np.load(os.path.join(input_dir, f'episode_{i:07}.npz'))
+                frame = np.load(f'../episode_{i:07}.npz'.encode())
                 txn.put('cur_step'.encode(), dumps(cur_step))
                 txn.put(f'cur_episode_{cur_step}'.encode(), dumps(cur_episode))
                 txn.put(f'done_{cur_step}'.encode(), dumps(False))
@@ -48,14 +52,3 @@ def save_to_lmdb(output_dir, input_dir):
             txn.put(f'done_{cur_step-1}'.encode(), dumps(True))
             cur_episode += 1
     env.close()
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Transfer CALVIN dataset to lmdb format.")
-    parser.add_argument("--input_dir", default='./ABC_D', type=str, help="Original dataset directory.")
-    parser.add_argument("--output_dir", default='./calvin_lmdb', type=str, help="Original dataset directory.")
-    args = parser.parse_args()
-    model_clip, _ = clip.load('ViT-B/32', device='cuda:0')
-    if not os.path.exists(args.output_dir):
-        os.makedirs(args.output_dir)
-    save_to_lmdb(args.output_dir, os.path.join(args.input_dir, 'training'))
-    save_to_lmdb(args.output_dir, os.path.join(args.input_dir, 'validation'))

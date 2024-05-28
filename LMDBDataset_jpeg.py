@@ -48,23 +48,24 @@ class DataPrefetcher():
         return batch, time
 
 class LMDBDataset(Dataset):
-    def __init__(self, lmdb_dir, sequence_length, action_mode, action_dim, start_ratio, end_ratio):
+    def __init__(self, lmdb_dir, sequence_length, chunk_size, action_mode, action_dim, start_ratio, end_ratio):
         super(LMDBDataset).__init__()
         self.sequence_length = sequence_length
+        self.chunk_size = chunk_size
         self.action_mode = action_mode
         self.action_dim = action_dim
         self.dummy_rgb_static = torch.zeros(sequence_length, 3, ORIGINAL_STATIC_RES, ORIGINAL_STATIC_RES, dtype=torch.uint8)
         self.dummy_rgb_gripper = torch.zeros(sequence_length, 3, ORIGINAL_GRIPPER_RES, ORIGINAL_GRIPPER_RES, dtype=torch.uint8)
         self.dummy_arm_state = torch.zeros(sequence_length, 6)
         self.dummy_gripper_state =  torch.zeros(sequence_length, 2)
-        self.dummy_actions = torch.zeros(sequence_length, action_dim)
-        self.dummy_mask = torch.zeros(sequence_length)
+        self.dummy_actions = torch.zeros(sequence_length, chunk_size, action_dim)
+        self.dummy_mask = torch.zeros(sequence_length, chunk_size)
         self.lmdb_dir = lmdb_dir
         env = lmdb.open(lmdb_dir, readonly=True, create=False, lock=False)
         with env.begin() as txn:
             dataset_len = loads(txn.get('cur_step'.encode())) + 1
             self.start_step = int(dataset_len * start_ratio) 
-            self.end_step = int(dataset_len * end_ratio) - sequence_length
+            self.end_step = int(dataset_len * end_ratio) - sequence_length - chunk_size
         env.close()
 
     def open_lmdb(self):
@@ -87,19 +88,20 @@ class LMDBDataset(Dataset):
         cur_episode = loads(self.txn.get(f'cur_episode_{idx}'.encode()))
         inst_token = loads(self.txn.get(f'inst_token_{cur_episode}'.encode()))
         for i in range(self.sequence_length):
-            new_idx = idx + i
-            if loads(self.txn.get(f'cur_episode_{new_idx}'.encode())) == cur_episode:
-                mask[i] = 1
-                rgb_static[i] = decode_jpeg(loads(self.txn.get(f'rgb_static_{new_idx}'.encode())))
-                rgb_gripper[i] = decode_jpeg(loads(self.txn.get(f'rgb_gripper_{new_idx}'.encode())))
-                robot_obs = loads(self.txn.get(f'robot_obs_{new_idx}'.encode()))
+            if loads(self.txn.get(f'cur_episode_{idx+i}'.encode())) == cur_episode:
+                rgb_static[i] = decode_jpeg(loads(self.txn.get(f'rgb_static_{idx+i}'.encode())))
+                rgb_gripper[i] = decode_jpeg(loads(self.txn.get(f'rgb_gripper_{idx+i}'.encode())))
+                robot_obs = loads(self.txn.get(f'robot_obs_{idx+i}'.encode()))
                 arm_state[i, :6] = robot_obs[:6]
                 gripper_state[i, ((robot_obs[-1] + 1) / 2).long()] = 1
-                if self.action_mode == 'ee_rel_pose':
-                    actions[i] = loads(self.txn.get(f'rel_action_{new_idx}'.encode()))
-                elif self.action_mode == 'ee_abs_pose':
-                    actions[i] = loads(self.txn.get(f'abs_action_{new_idx}'.encode()))
-                actions[i, -1] = (actions[i, -1] + 1) / 2
+                for j in range(self.chunk_size):
+                    if loads(self.txn.get(f'cur_episode_{idx+i+j}'.encode())) == cur_episode:
+                        mask[i, j] = 1
+                        if self.action_mode == 'ee_rel_pose':
+                            actions[i, j] = loads(self.txn.get(f'rel_action_{idx+i+j}'.encode()))
+                        elif self.action_mode == 'ee_abs_pose':
+                            actions[i, j] = loads(self.txn.get(f'abs_action_{idx+i+j}'.encode()))
+                        actions[i, j, -1] = (actions[i, j, -1] + 1) / 2
         return {
             'rgb_static': rgb_static,
             'rgb_gripper': rgb_gripper,
