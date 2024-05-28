@@ -22,7 +22,7 @@ Also star and cite this repository (and of course the original implementation) i
 
 [2024.5.28] Release **GR-Chunk** which has higher performance. Specifically, the followings are updated:
 
- - The actions predicted by GR-Chunk has shape (sequence length, action dim), which improves the average length from 3.25 to 3.556 on CALVIN's ABC->D scenerio. See the method section. However, you can always load Bytedance's weights and use their settings by modifying `configs.json`.
+ - The actions predicted by GR-Chunk has shape (sequence length, action dim), which improves the average length from 3.25 to 3.556 on CALVIN's ABC->D scenerio (I uploads the log to `evaluation_logs` folder). See the method section. However, you can always load Bytedance's weights and use their settings by modifying `configs.json`.
  - This implementation can be directly used for multi-GPU training and evaluation. I run it on 12*4090 GPUs but it can be easily scaled if you have more computing resources.
  - Unlike the original implementation, GR-Chunk does not have old dependencies like `transformers==4.5.1`. Other dependencies mainly comes from CALVIN so you can discard them if you use other environments.
  - I use the same image shifting approach of the original implementation. The hyper-parameters (except for chunking) are as close as possible.
