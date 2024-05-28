@@ -145,13 +145,13 @@ Similar approach is taken in  Meta's recent [4-token prediction LLM](https://arx
 
 In my experiment, temporal ensembling of ACT does not improve the success rate.  Octo has similar conclusion. As reported by @[tonyzhaozh](https://github.com/tonyzhaozh/act/commits?author=tonyzhaozh), temporal ensembling seems to work better with small data.
 
-The best `test_chunk_size` seems to be 1, see the following ablation:
+The best `test_chunk_size` seems to be 1 when `chunk_size==10`, see the following ablation:
 
 | Configuration | Avg. Len of ABC->D |
 |--|--|
 | chunk_size=1, test_chunk_size=1 | 3.257 |
 | chunk_size=10, test_chunk_size=1 | 3.556 |
-| chunk_size=10, test_chunk_size=2 | in testing |
+| chunk_size=10, test_chunk_size=2 | 2.145 |
 
 ## Detailed Analysis of the Original Network and API
 Please refer to this [issue](https://github.com/bytedance/GR-1/issues/4).
