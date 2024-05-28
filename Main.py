@@ -2,13 +2,14 @@ import os
 import math
 import json
 from time import time
+from datetime import timedelta
 import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, random_split
 from transformers import get_cosine_schedule_with_warmup
 from accelerate import Accelerator
-from accelerate.utils import DistributedDataParallelKwargs
+from accelerate.utils import DistributedDataParallelKwargs, InitProcessGroupKwargs
 from torch.profiler import profile, record_function, ProfilerActivity, tensorboard_trace_handler
 from torch.utils.tensorboard import SummaryWriter
 import clip
@@ -206,6 +207,13 @@ def train(acc, train_prefetcher, test_prefetcher, preprocessor, model, env, eva,
 if __name__ == '__main__':
     # Preparation
     cfg = json.load(open('configs.json'))
+    # The timeout here is 3600s to wait for other processes to finish the simulation
+    init_pg_kwargs = InitProcessGroupKwargs(timeout=timedelta(seconds=3600))
+    ddp_kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
+    acc = Accelerator(
+        gradient_accumulation_steps=cfg['gradient_accumulation_steps'],
+        kwargs_handlers=[init_pg_kwargs, ddp_kwargs]
+    )
     kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
     acc = Accelerator(
         gradient_accumulation_steps=cfg['gradient_accumulation_steps'],

@@ -32,6 +32,8 @@ import time
 import copy
 from moviepy.editor import ImageSequenceClip
 from accelerate import Accelerator
+from datetime import timedelta
+from accelerate.utils import InitProcessGroupKwargs
 
 # This is for using the locally installed repo clone when using slurm
 from calvin_agent.models.calvin_base_model import CalvinBaseModel
@@ -164,7 +166,9 @@ def rollout(env, model, task_oracle, subtask, val_annotations, debug, eval_dir, 
 def main():
     # Preparation
     cfg = json.load(open('configs.json'))
-    acc = Accelerator()
+    # The timeout here is 3600s to wait for other processes to finish the simulation
+    kwargs = InitProcessGroupKwargs(timeout=timedelta(seconds=3600))
+    acc = Accelerator(kwargs_handlers=[kwargs])
     device = acc.device
     preprocessor = PreProcess(
         cfg['rgb_static_pad'],

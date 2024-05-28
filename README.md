@@ -1,5 +1,6 @@
 # GR1-Training
 
+
 ![](README_md_files/aeb5db90-1cef-11ef-b8f1-596730d257b3.jpeg?v=1&type=image)
 
 A variant of GR-1: "Unleashing Large-Scale Video Generative Pre-training for Visual Robot Manipulation". It performs good on [CALVIN Manipulation Benchmark](http://calvin.cs.uni-freiburg.de/) without using depth information. The original implementation is [here](https://github.com/bytedance/GR-1) but there is no training script.
@@ -29,6 +30,7 @@ Also star and cite this repository (and of course the original implementation) i
 
 [2024.5.16] Initial data, checkpoint, training & evaluation code released.
 
+
 ## Installation
 
 Setup conda environment and install the CALVIN benchmark. Notice that you do not need this step if you don't want to use CALVIN simulation (so just install my repository).
@@ -45,7 +47,7 @@ sed -i 's/pytorch-lightning==1.8.6/pytorch-lightning/g' requirements.txt
 sed -i 's/torch==1.13.1/torch/g' requirements.txt
 cd ..
 sh ./install.sh
-cd ..```
+cd ..
 ```
 Install this repository:
 ```
@@ -67,7 +69,7 @@ python calvin2lmdb.py --input_dir ./calvin_debug_dataset --output_dir ./calvin_l
 ```
 You can also download the processed LMDB dataset (ABC->D split) from Huggingface. The LMDB dataset only takes ~23GB, while the original ABC->D split takes 517GB. In this example, I use the tool of [HF-Mirror](https://hf-mirror.com/). You can set the environment variable `export HF_ENDPOINT=https://hf-mirror.com` to avoid the connection problem in some regions.
 ```
-rm calvin_lmdb
+rm -rf calvin_lmdb
 apt install git-lfs aria2
 wget https://hf-mirror.com/hfd/hfd.sh
 chmod a+x hfd.sh
@@ -75,17 +77,14 @@ chmod a+x hfd.sh
 ```
 ## Config HuggingFace Accelerate & Setup CALVIN Simulation
 
-Please use this command and follow its instructions depending on the GPU(s) you have
+To config accelerate, run this command and follow its guidance:
 ```
 accelerate config
 ```
-To set up CALVIN:
+
+To setup CALVIN, use
 ```
-export CALVIN_ROOT=<path to the calvin repo>
-```
-If you do not want to run CALVIN evaluation during training, set this in `configs.json`:
-```
-"evaluate_during_training": false,
+export CALVIN_ROOT=<path to calvin folder>
 ```
 
 ## Prepare Weights
@@ -142,7 +141,7 @@ Let's assume `sequence_len==4`, `chunk_size==3`, `test_chunk_size==2` and the cu
 
 By contrast, the output in GR-Chunk is ((a1, a2, a3), (a2, a3, a4), (a3, a4, a5), (a4, a5, a6)). In the environment, we take the predicted action a4 and a5 in consecutive timesteps, and then run the policy to predict future actions again. 
 
-Similar approach is taken in  Meta's recent [4-token prediction LLM](https://arxiv.org/pdf/2404.19737), Tony Zhao's [ACT/Aloha](https://github.com/tonyzhaozh/act), Cheng Chi's [Diffusion Policy](https://github.com/real-stanford/diffusion_policy), and [Octo](https://github.com/octo-models/octo).
+Similar approach is taken in  Meta's recent [4-token prediction LLM](https://arxiv.org/pdf/2404.19737), [ACT/Aloha](https://github.com/tonyzhaozh/act) of @[tonyzhaozh](https://github.com/tonyzhaozh/act/commits?author=tonyzhaozh), [Diffusion Policy](https://github.com/real-stanford/diffusion_policy) of @[cheng-chi](https://github.com/real-stanford/diffusion_policy/commits?author=cheng-chi), and [Octo](https://github.com/octo-models/octo).
 
 In my experiment, temporal ensembling of ACT does not improve the success rate.  Octo has similar conclusion. As reported by @[tonyzhaozh](https://github.com/tonyzhaozh/act/commits?author=tonyzhaozh), temporal ensembling seems to work better with small data.
 
@@ -154,6 +153,8 @@ The best `test_chunk_size` seems to be 1, see the following ablation:
 | chunk_size=10, test_chunk_size=1 | 3.556 |
 | chunk_size=10, test_chunk_size=2 | in testing |
 
+## Detailed Analysis of the Original Network and API
+Please refer to this [issue](https://github.com/bytedance/GR-1/issues/4).
 
 ## Training Curves
 
@@ -203,13 +204,16 @@ Learning rate
 Great thanks to [@bdrhtw](https://github.com/bdrhtw) to make it open-source! 
 
 ## Feel Free to Contact Me!
+
+
 Email: zhuohengli@foxmail.com
 
 Find Zhuoheng Li in HuggiingFace LeRobot server: [![Discord](https://dcbadge.vercel.app/api/server/C5P34WJ68S?style=flat)](https://discord.gg/s3KuuzsPFb)
 (try to merge this repo to LeRobot)
 
-Wechat group for GR1 reproduction: 
+Wechat group: 
 
 ![![](README_md_files/a80578a0-1cf9-11ef-b8f1-596730d257b3.jpeg?v=1&type=image)](README_md_files/c070ff40-1cf9-11ef-b8f1-596730d257b3.jpeg?v=1&type=image)
+
 
 Or feel free to open an issue here.
