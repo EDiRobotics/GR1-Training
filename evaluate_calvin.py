@@ -247,7 +247,7 @@ def main():
         acc.num_processes,
         acc.process_index,
         eval_dir,
-        debug=False
+        debug=cfg['record_evaluation_video'],
     )).float().mean().to(device)
     acc.wait_for_everyone()
     avg_reward = acc.gather_for_metrics(avg_reward).mean()

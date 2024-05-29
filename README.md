@@ -116,6 +116,7 @@ It loads `GR1_<the epoch you select>.pth` from `./Save/`.  Notice that my weight
 
 Remember to set these in `configs.json` (you may not use my hyper-parameters):
 ```
+"record_evaluation_video": "<true or false>",
 "bytedance_ckpt_path": "<path to the Bytedance's weight>",
 "load_bytedance_ckpt": <true or false>,
 "load_epoch": <the epoch of checkpoint you want>,
@@ -129,7 +130,7 @@ Then simply run
 ```
 accelerate launch evaluate_calvin.py
 ```
-It will run N simulations in parallel on N GPUs (depending on what you set in `accelerate config`).
+It will run N simulations in parallel on N GPUs (depending on what you set in `accelerate config`). If you choose to record the evaluation video, the videos will be saved in `eval_<GPU id>` folder under the `save_path` you specify.
 
 ## Training
 

@@ -1,5 +1,6 @@
 {
   "evaluate_during_training": false,
+  "record_evaluation_video": false,
   "compile_model": false,
   "bytedance_ckpt_path": "./snapshot_ABC.pt",
   "load_bytedance_ckpt": false,

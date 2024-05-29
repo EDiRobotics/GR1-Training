@@ -72,7 +72,7 @@ def train(acc, train_prefetcher, test_prefetcher, preprocessor, model, env, eva,
                     acc.num_processes,
                     acc.process_index,
                     eval_dir,
-                    debug=False
+                    debug=cfg['record_evaluation_video'],
                 )).float().mean().to(device)
                 avg_reward = acc.gather_for_metrics(avg_reward).mean()
             acc.wait_for_everyone()
