@@ -214,11 +214,6 @@ if __name__ == '__main__':
         gradient_accumulation_steps=cfg['gradient_accumulation_steps'],
         kwargs_handlers=[init_pg_kwargs, ddp_kwargs]
     )
-    kwargs = DistributedDataParallelKwargs(find_unused_parameters=True)
-    acc = Accelerator(
-        gradient_accumulation_steps=cfg['gradient_accumulation_steps'],
-        kwargs_handlers=[kwargs],
-    )
     device = acc.device
     preprocessor = PreProcess(
         cfg['rgb_static_pad'],

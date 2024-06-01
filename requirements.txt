@@ -4,14 +4,9 @@ packaging==21.3
 setuptools==57.5.0
 flamingo_pytorch
 tensorboard
-ftfy
-regex
-tqdm
 matplotlib
 einops 
 lmdb 
-opencv-python
-av
 transformers
 accelerate
 git+https://github.com/openai/CLIP.git

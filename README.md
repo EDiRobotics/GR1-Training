@@ -54,10 +54,10 @@ Install this repository:
 git clone https://github.com/EDiRobotics/GR1-Training
 cd ./GR1-Training
 pip install -r requirements.txt
-apt-get install libegl1-mesa libegl1
-apt-get install libgl1
-apt-get install libosmesa6-dev
-apt-get install patchelf
+apt-get install -y libegl1-mesa libegl1
+apt-get install -y libgl1
+apt-get install -y libosmesa6-dev
+apt-get install -y patchelf
 ```
 
 ## Prepare Dataset

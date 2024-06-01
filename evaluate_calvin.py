@@ -63,7 +63,7 @@ from models.gr1 import GR1
 
 logger = logging.getLogger(__name__)
 
-# Path to calvin
+os.environ["FFMPEG_BINARY"] = "auto-detect"
 CALVIN_ROOT = os.environ['CALVIN_ROOT']
 
 def make_env(dataset_path, observation_space, device):
@@ -220,11 +220,6 @@ def main():
         acc.print('load ', cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']))
     if cfg['compile_model']:
         model = torch.compile(model)
-    if os.path.isfile(cfg['save_path']+'step.json'):
-        with open(cfg['save_path']+'step.json', 'r') as json_file:
-            step = json.load(open(cfg['save_path']+'step.json'))
-    else:
-        step = 0
     model = acc.prepare(model, device_placement=[True])
     observation_space = {
         'rgb_obs': ['rgb_static', 'rgb_gripper'], 
