@@ -135,6 +135,8 @@ accelerate launch evaluate_calvin.py
 ```
 It will run N simulations in parallel on N GPUs (depending on what you set in `accelerate config`). If you choose to record the evaluation video, the videos will be saved in `eval_<GPU id>` folder under the `save_path` you specify.
 
+**If you have EGL related errors**: this error can usually be fixed by install some packages depending on your system. I recommend to use `conda install -c conda-forge <package>` instead of `apt install` since it usually fixes my error. You can contact me if it's still not solved
+
 ## Training
 
 After setting `configs.json`, you can simply launch training with 
