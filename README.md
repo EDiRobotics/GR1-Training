@@ -18,7 +18,7 @@ Please remember I build systems for you ヾ(^▽\^*)). Feel free to ask [me](zhu
 Also star and cite this repository (and of course the original implementation) if you find it is helpful!
 
 ## News
-[2024.6.17] Release the initial version of **GR-Diffusion**, which denoises both the predicted images and actions. It can directly load Bytedance's GR-1 checkpoint but its performance is worse than GR-Chunk. Please refer to the `grdiffusion` branch. 
+[2024.6.17] Release the initial version of **GR-Diffusion**, which denoises both the predicted images and actions. It can directly load Bytedance's GR-1 checkpoint but its performance is worse than GR-Chunk. Please refer to the [grdiffusion](https://github.com/EDiRobotics/GR1-Training/tree/grdiffusion) branch. 
 
 [2024.5.28] Release **GR-Chunk** which has higher performance. Specifically, the followings are updated:
 
