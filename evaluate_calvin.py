@@ -59,7 +59,7 @@ from utils.calvin_utils import print_and_save
 import clip
 from PreProcess import PreProcess
 import models.vision_transformer as vits
-from models.gr1 import GR1 
+from models.gr_diffusion import DiffusionPolicy
 
 logger = logging.getLogger(__name__)
 
@@ -182,7 +182,7 @@ def main():
     model_mae = vits.__dict__['vit_base'](patch_size=16, num_classes=0).to(device)
     checkpoint = torch.load(cfg['mae_ckpt'])
     model_mae.load_state_dict(checkpoint['model'], strict=False)
-    model = GR1(
+    policy = DiffusionPolicy(
         model_clip,
         model_mae,
         state_dim=cfg['state_dim'],
@@ -201,8 +201,6 @@ def main():
             'num_latents': cfg['resampler_num_latents'],
             'num_media_embeds': cfg['resampler_num_media_embeds'],
         },
-        without_norm_pixel_loss=False,
-        use_hand_rgb=True,
         n_layer=cfg['n_layer'],
         n_head=cfg['n_head'],
         n_inner=4*cfg['embed_dim'],
@@ -210,17 +208,28 @@ def main():
         n_positions=cfg['n_positions'],
         resid_pdrop=cfg['dropout'],
         attn_pdrop=cfg['dropout'],
-    ).to(device)  # for fused optimizer
+        without_norm_pixel_loss=False,
+        use_hand_rgb=True,
+        num_train_steps=cfg['train_diffusion_steps'],
+        num_infer_steps=cfg['infer_diffusion_steps'],
+        device=device,
+    )
     if cfg['load_bytedance_ckpt']:
-        model.load_state_dict(torch.load(cfg['bytedance_ckpt_path'])['state_dict'], strict=False)
-        acc.print('load ', cfg['bytedance_ckpt_path'] )
-    elif os.path.isfile(cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch'])):
-        state_dict = torch.load(cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']))['state_dict'] 
-        model.load_state_dict(state_dict, strict=False)
-        acc.print('load ', cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']))
-    if cfg['compile_model']:
-        model = torch.compile(model)
-    model = acc.prepare(model, device_placement=[True])
+        state_dict = torch.load(cfg['bytedance_ckpt_path'])['state_dict']
+        state_dict['action_queries.weight'] = state_dict['action_queries.weight'].repeat(cfg['chunk_size'], 1) # a dirty fix
+        missing_keys, unexpected_keys = policy.net.load_state_dict(state_dict, strict=False)
+        missing_keys, unexpected_keys = policy.ema_net.load_state_dict(state_dict, strict=False)
+        acc.print('\nload ', cfg['bytedance_ckpt_path'], '\nmissing ', missing_keys, '\nunexpected ', unexpected_keys)
+    elif os.path.isfile(cfg['save_path']+'policy_{}.pth'.format(cfg['load_epoch'])):
+        missing_keys, unexpected_keys = policy.net.load_state_dict(torch.load(cfg['save_path']+'policy_{}.pth'.format(cfg['load_epoch'])), strict=False)
+        acc.print('load ', cfg['save_path']+'policy_{}.pth'.format(cfg['load_epoch']), '\nmissing ', missing_keys, '\nunexpected ', unexpected_keys)
+        missing_keys, unexpected_keys = policy.ema_net.load_state_dict(torch.load(cfg['save_path']+'ema_{}.pth'.format(cfg['load_epoch'])), strict=False)
+        acc.print('load ', cfg['save_path']+'ema_{}.pth'.format(cfg['load_epoch']), '\nmissing ', missing_keys, '\nunexpected ', unexpected_keys)
+    policy.net, policy.ema_net = acc.prepare(
+        policy.net, 
+        policy.ema_net, 
+        device_placement=[True, True],
+    )
     observation_space = {
         'rgb_obs': ['rgb_static', 'rgb_gripper'], 
         'depth_obs': [], 
@@ -230,8 +239,8 @@ def main():
     eval_dir = cfg['save_path']+f'eval{torch.cuda.current_device()}/'
     os.makedirs(eval_dir, exist_ok=True)
     env = make_env('./fake_dataset', observation_space, device)
-    eva = GR1CalvinEvaluation(model, cfg, preprocessor, device)
-    model.eval()
+    eva = GR1CalvinEvaluation(policy, cfg, preprocessor, device)
+    policy.ema_net.eval()
     avg_reward = torch.tensor(evaluate_policy(
         eva, 
         env,

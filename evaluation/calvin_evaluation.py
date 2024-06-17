@@ -22,7 +22,6 @@ from einops import rearrange
 import clip
 
 import models.vision_transformer as vits
-from models.gr1 import GR1
 
 from calvin_agent.models.calvin_base_model import CalvinBaseModel
 
@@ -123,7 +122,7 @@ class GR1CalvinEvaluation(CalvinBaseModel):
         rgb_data, hand_rgb_data = self.preprocessor.rgb_process(rgb_data, hand_rgb_data, train=False)
 
         with torch.no_grad():
-            prediction = self.policy(
+            prediction = self.policy.infer(
                 rgb=rgb_data, 
                 hand_rgb=hand_rgb_data,
                 state=state_data,
@@ -132,12 +131,12 @@ class GR1CalvinEvaluation(CalvinBaseModel):
         )
 
         # Arm action
-        arm_action_preds = prediction['arm_action_preds']  # (1, t, chunk_size, act_dim - 1)
+        arm_action_preds = prediction[..., :-1]  # (1, t, chunk_size, act_dim - 1)
         arm_action_preds = arm_action_preds.view(-1, self.chunk_size, self.act_dim - 1)  # (t, chunk_size, act_dim - 1)
         arm_action_preds = arm_action_preds[attention_mask.flatten() > 0]
 
         # Gripper action
-        gripper_action_preds = prediction['gripper_action_preds']  # (1, t, chunk_size, 1)
+        gripper_action_preds = prediction[..., -1:]  # (1, t, chunk_size, 1)
         gripper_action_preds = gripper_action_preds.view(-1, self.chunk_size, 1)  # (t, chunk_size, 1)
         gripper_action_preds = gripper_action_preds[attention_mask.flatten() > 0]
 
