@@ -60,6 +60,17 @@ def train(acc, train_prefetcher, test_prefetcher, preprocessor, model, env, eva,
     avg_reward = 0.0
     for epoch in range(cfg['num_epochs']):
         if epoch % cfg['save_epochs'] == 0:
+            # in the 1st epoch, policy.ema has not been initialized. You may also load the wrong ckpt and modify the right one
+            if epoch != 0:
+                acc.wait_for_everyone()
+                unwrapped_model = acc.unwrap_model(model)
+                modules_to_exclude = ['model_mae', 'model_clip']
+                if hasattr(unwrapped_model, '_orig_mod'):
+                    state_dict = {k: v for k, v in unwrapped_model._orig_mod.state_dict().items() if not any(module_name in k for module_name in modules_to_exclude)}
+                else:
+                    state_dict = {k: v for k, v in unwrapped_model.state_dict().items() if not any(module_name in k for module_name in modules_to_exclude)}
+                acc.save({'state_dict': state_dict}, cfg['save_path']+'GR1_{}.pth'.format(epoch+cfg['load_epoch']))
+
             if cfg['evaluate_during_training']:
                 model.eval()
                 avg_reward = torch.tensor(evaluate_policy(
@@ -75,14 +86,6 @@ def train(acc, train_prefetcher, test_prefetcher, preprocessor, model, env, eva,
                     debug=cfg['record_evaluation_video'],
                 )).float().mean().to(device)
                 avg_reward = acc.gather_for_metrics(avg_reward).mean()
-            acc.wait_for_everyone()
-            unwrapped_model = acc.unwrap_model(model)
-            modules_to_exclude = ['model_mae', 'model_clip']
-            if hasattr(unwrapped_model, '_orig_mod'):
-                state_dict = {k: v for k, v in unwrapped_model._orig_mod.state_dict().items() if not any(module_name in k for module_name in modules_to_exclude)}
-            else:
-                state_dict = {k: v for k, v in unwrapped_model.state_dict().items() if not any(module_name in k for module_name in modules_to_exclude)}
-            acc.save({'state_dict': state_dict}, cfg['save_path']+'GR1_{}.pth'.format(epoch+cfg['load_epoch']))
 
         log_loss = {
             'rgb_static': 0,
@@ -293,12 +296,12 @@ if __name__ == '__main__':
         attn_pdrop=cfg['dropout'],
     ).to(device)  # for fused optimizer
     if cfg['load_bytedance_ckpt']:
-        model.load_state_dict(torch.load(cfg['bytedance_ckpt_path'])['state_dict'], strict=False)
-        acc.print('load ', cfg['bytedance_ckpt_path'] )
+        missing_keys, unexpected_keys = model.load_state_dict(torch.load(cfg['bytedance_ckpt_path'])['state_dict'], strict=False)
+        acc.print('load ', cfg['bytedance_ckpt_path'], '\nmissing ', missing_keys, '\nunexpected ', unexpected_keys)
     elif os.path.isfile(cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch'])):
         state_dict = torch.load(cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']))['state_dict'] 
-        model.load_state_dict(state_dict, strict=False)
-        acc.print('load ', cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']))
+        missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
+        acc.print('load ', cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']), , '\nmissing ', missing_keys, '\nunexpected ', unexpected_keys)
     if cfg['compile_model']:
         model = torch.compile(model)
     if os.path.isfile(cfg['save_path']+'step.json'):

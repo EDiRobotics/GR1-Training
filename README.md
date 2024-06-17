@@ -18,7 +18,7 @@ Please remember I build systems for you ヾ(^▽\^*)). Feel free to ask [me](zhu
 Also star and cite this repository (and of course the original implementation) if you find it is helpful!
 
 ## News
-[In Progress] Pre-training, finetune the visual encoder, modify the architecture + loss but keep compatibility with Bytedance's weights...
+[2024.6.17] Release the initial version of **GR-Diffusion**, which denoises both the predicted images and actions. It can directly load Bytedance's GR-1 checkpoint but its performance is worse than GR-Chunk. Please refer to the `grdiffusion` branch. 
 
 [2024.5.28] Release **GR-Chunk** which has higher performance. Specifically, the followings are updated:
 
@@ -81,7 +81,7 @@ chmod a+x hfd.sh
 ```
 ## Config HuggingFace Accelerate & Setup CALVIN Simulation
 
-To config accelerate, run this command and follow its guidance:
+To config accelerate, run this command and follow its guidance. I use `bf16` in training.
 ```
 accelerate config
 ```
@@ -110,7 +110,10 @@ If you choose to use my weights, please set
 "save_path": "<the folder you save the checkpoints & log>",
 "mae_ckpt": "<path to ViT weight>",
 ```
-It loads `GR1_<the epoch you select>.pth` from `./Save/`.  Notice that my weights with different `chunk_size` are incompatible, but you can slightly modify `state_dict['action_chunk_queries.weight']` to solve it.
+It loads `GR1_<the epoch you select>.pth` from `./Save/`.  Notice that:
+- To use my weights, copy it from the downloaded lmdb dataset and rename it as `GR1_<load_epoch>.pth`. 
+- My weights with different `chunk_size` are incompatible, but you can slightly modify `state_dict['action_chunk_queries.weight']` to solve it.
+- `GR1_0_chunksize1.pth` (197MB) is trained with transformers 4.11, which will save `attn.bias` and `attn.mask_bias`. By contrast, `GR1_0_chunksize10.pth` (186MB) is trained with newest transformers, which will not save such parameters. 
 
 ## Evaluation
 
