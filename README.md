@@ -223,7 +223,7 @@ Find Zhuoheng Li in HuggiingFace LeRobot server: [![Discord](https://dcbadge.ver
 
 Wechat group: 
 
-![![](README_md_files/a80578a0-1cf9-11ef-b8f1-596730d257b3.jpeg?v=1&type=image)](README_md_files/c070ff40-1cf9-11ef-b8f1-596730d257b3.jpeg?v=1&type=image)
+![图片](https://github.com/EDiRobotics/GR1-Training/assets/33491471/a1f6a83c-f7b0-4e7e-917f-0a2de3bc7011)
 
 
 Or feel free to open an issue here.
