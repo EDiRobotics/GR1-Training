@@ -301,7 +301,7 @@ if __name__ == '__main__':
     elif os.path.isfile(cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch'])):
         state_dict = torch.load(cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']))['state_dict'] 
         missing_keys, unexpected_keys = model.load_state_dict(state_dict, strict=False)
-        acc.print('load ', cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']), , '\nmissing ', missing_keys, '\nunexpected ', unexpected_keys)
+        acc.print('load ', cfg['save_path']+'GR1_{}.pth'.format(cfg['load_epoch']), '\nmissing ', missing_keys, '\nunexpected ', unexpected_keys)
     if cfg['compile_model']:
         model = torch.compile(model)
     if os.path.isfile(cfg['save_path']+'step.json'):
