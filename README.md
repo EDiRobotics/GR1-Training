@@ -18,9 +18,20 @@ Please remember I build systems for you ヾ(^▽\^*)). Feel free to ask [me](zhu
 Also star and cite this repository (and of course the original implementation) if you find it is helpful!
 
 ## News
-[2024.6.17] Release the initial version of **GR-Diffusion**, which denoises both the predicted images and actions. It can directly load Bytedance's GR-1 checkpoint but its performance is worse than GR-Chunk. Please refer to the [grdiffusion](https://github.com/EDiRobotics/GR1-Training/tree/grdiffusion) branch. 
+**[2024.7.10]** Now it can render the predicted videos. Here are some examples:
 
-[2024.5.28] Release **GR-Chunk** which has higher performance. Specifically, the followings are updated:
+| Real | Predicted |
+|--|--|
+| ![输入图片描述](README_md_files/5c029c40-3e77-11ef-b06d-69973bdd91b6.jpeg?v=1&type=image) | ![输入图片描述](README_md_files/67158a70-3e77-11ef-b06d-69973bdd91b6.jpeg?v=1&type=image) |
+| ![输入图片描述](README_md_files/7d6dc170-3e77-11ef-b06d-69973bdd91b6.jpeg?v=1&type=image) | ![](README_md_files/839ab800-3e77-11ef-b06d-69973bdd91b6.jpeg?v=1&type=image) |
+
+To render the videos, please set `without_norm_pixel_loss=true` during training and `record_evaluation_video=true` during inference. Train GR-Chunk with `without_norm_pixel_loss=true` seems to have a lower average length (3.46 on ABC->D, the checkpoint is [here](https://huggingface.co/datasets/StarCycle/calvin_lmdb/blob/main/GR1_chunksize10_withoutpixnorm.pth)).
+
+**[2024.6.17]** Release the initial version of **GR-Diffusion**, which denoises both the predicted images and actions. It can directly load Bytedance's GR-1 checkpoint but its performance is worse than GR-Chunk. 
+
+Please refer to the [grdiffusion](https://github.com/EDiRobotics/GR1-Training/tree/grdiffusion) branch. 
+
+**[2024.5.28]** Release **GR-Chunk** which has higher performance. Specifically, the followings are updated:
 
  - The actions predicted by GR-Chunk has shape (sequence length, action dim), which improves the average length from 3.25 to 3.556 on CALVIN's ABC->D scenerio (I uploads the log to `evaluation_logs` folder). See the method section. However, you can always load Bytedance's weights and use their settings by modifying `configs.json`.
  - This implementation can be directly used for multi-GPU training and evaluation. I run it on 12*4090 GPUs but it can be easily scaled if you have more computing resources.
@@ -28,7 +39,7 @@ Also star and cite this repository (and of course the original implementation) i
  - I use the same image shifting approach of the original implementation. The hyper-parameters (except for chunking) are as close as possible.
  -  Add independent evaluation script and modify some APIs.
 
-[2024.5.16] Initial data, checkpoint, training & evaluation code released.
+**[2024.5.16]** Initial data, checkpoint, training & evaluation code released.
 
 
 ## Installation

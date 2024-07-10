@@ -37,7 +37,7 @@ class PreProcess():
             rgb_std, 
             device,
         ):
-        self.resize = Resize(rgb_shape, interpolation=Image.BICUBIC, antialias=True).to(device)
+        self.resize = Resize([rgb_shape, rgb_shape], interpolation=Image.BICUBIC, antialias=True).to(device)
         self.rgb_static_pad = rgb_static_pad
         self.rgb_gripper_pad = rgb_gripper_pad
         self.rgb_mean = torch.tensor(rgb_mean, device=device).view(1, 1, -1, 1, 1)
@@ -54,4 +54,13 @@ class PreProcess():
         # torchvision Normalize forces sync between CPU and GPU, so we use our own
         rgb_static = (rgb_static - self.rgb_mean) / (self.rgb_std + 1e-6)
         rgb_gripper = (rgb_gripper - self.rgb_mean) / (self.rgb_std + 1e-6)
+        return rgb_static, rgb_gripper
+
+    def rgb_back_process(self, rgb_static, rgb_gripper):
+        rgb_static = rgb_static * (self.rgb_std + 1e-6) + self.rgb_mean
+        rgb_gripper = rgb_gripper * (self.rgb_std + 1e-6) + self.rgb_mean
+        rgb_static = torch.clamp(rgb_static, 0, 1)
+        rgb_gripper = torch.clamp(rgb_gripper, 0, 1)
+        rgb_static *= 255.
+        rgb_gripper *= 255.
         return rgb_static, rgb_gripper

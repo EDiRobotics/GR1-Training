@@ -29,6 +29,8 @@ class GR1(nn.Module):
             self,
             model_clip,
             model_mae,
+            rgb_shape,
+            patch_size,
             state_dim,
             act_dim,
             hidden_size,
@@ -39,7 +41,7 @@ class GR1(nn.Module):
             patch_feat_dim,
             lang_feat_dim,
             resampler_params,
-            without_norm_pixel_loss=False,
+            without_norm_pixel_loss,
             use_hand_rgb=True,
             **kwargs
     ):
@@ -78,9 +80,8 @@ class GR1(nn.Module):
         for _, param in self.model_mae.named_parameters():
             param.requires_grad = False
         
-        self.n_patches = 49
-        self.patch_size = 16
-        self.image_size = 224
+        self.patch_size = patch_size
+        self.image_size = rgb_shape
         self.img_feat_dim = img_feat_dim
         self.lang_feat_dim = lang_feat_dim
         self.patch_feat_dim = patch_feat_dim

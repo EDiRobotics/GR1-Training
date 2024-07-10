@@ -269,6 +269,8 @@ if __name__ == '__main__':
     model = GR1(
         model_clip,
         model_mae,
+        rgb_shape=cfg['rgb_shape'],
+        patch_size=cfg['patch_size'],
         state_dim=cfg['state_dim'],
         act_dim=cfg['act_dim'],
         hidden_size=cfg['embed_dim'],
@@ -285,7 +287,7 @@ if __name__ == '__main__':
             'num_latents': cfg['resampler_num_latents'],
             'num_media_embeds': cfg['resampler_num_media_embeds'],
         },
-        without_norm_pixel_loss=False,
+        without_norm_pixel_loss=cfg['without_norm_pixel_loss'],
         use_hand_rgb=True,
         n_layer=cfg['n_layer'],
         n_head=cfg['n_head'],

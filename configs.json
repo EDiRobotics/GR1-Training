@@ -1,5 +1,5 @@
 {
-  "evaluate_during_training": false,
+  "evaluate_during_training": true,
   "record_evaluation_video": false,
   "compile_model": false,
   "bytedance_ckpt_path": "./snapshot_ABC.pt",
@@ -20,7 +20,8 @@
   "gradient_accumulation_steps": 3,
   "rgb_static_pad": 10,
   "rgb_gripper_pad": 4,
-  "rgb_shape": [224, 224],
+  "rgb_shape": 224,
+  "patch_size": 16,
   "rgb_mean": [0.485, 0.456, 0.406],
   "rgb_std": [0.229, 0.224, 0.225],
   "LMDB_path": "../calvin_lmdb/",
@@ -51,7 +52,7 @@
   "fwd_pred": true,
   "fwd_pred_hand": true,
   "fwd_pred_next_n": 3,
-  "without_norm_pix_loss": false,
+  "without_norm_pixel_loss": false,
   "img_feat_dim": 768,
   "patch_feat_dim": 768,
   "lang_feat_dim": 512

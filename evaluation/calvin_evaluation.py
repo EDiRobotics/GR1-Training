@@ -41,6 +41,8 @@ class GR1CalvinEvaluation(CalvinBaseModel):
         self.test_chunk_size = variant['test_chunk_size']
         self.use_hand_rgb = variant['use_hand_rgb']
         self.act_dim = variant['act_dim']
+        self.rgb_shape = variant['rgb_shape']
+        self.patch_size = variant['patch_size']
         self.state_dim = variant['state_dim']
         self.device = device
 
@@ -153,4 +155,17 @@ class GR1CalvinEvaluation(CalvinBaseModel):
 
         self.rollout_step_counter += 1
     
-        return action_pred
+        ps = self.patch_size
+        pn = self.rgb_shape // ps
+        obs_preds = rearrange(prediction['obs_preds'], 'b s (hp wp) (p1 p2 c) -> b s c (hp p1) (wp p2)', hp=pn, wp=pn, p1=ps, p2=ps, c=3)
+        obs_hand_preds = rearrange(prediction['obs_hand_preds'], 'b s (hp wp) (p1 p2 c) -> b s c (hp p1) (wp p2)', hp=pn, wp=pn, p1=ps, p2=ps, c=3)
+        obs_preds, obs_hand_preds = self.preprocessor.rgb_back_process(obs_preds, obs_hand_preds)
+        obs_preds = rearrange(obs_preds, 'b s c h w -> b s h w c')
+        obs_hand_preds = rearrange(obs_hand_preds, 'b s c h w -> b s h w c')
+
+        output = {
+            'obs_preds': obs_preds.cpu().numpy(),
+            'obs_hand_preds': obs_hand_preds.cpu().numpy(),
+            'action_pred': action_pred,
+        }
+        return output

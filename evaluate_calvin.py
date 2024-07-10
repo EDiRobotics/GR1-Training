@@ -137,29 +137,39 @@ def rollout(env, model, task_oracle, subtask, val_annotations, debug, eval_dir, 
     model.reset()
     start_info = env.get_info()
     if debug:
-        img_list = []
+        img_dict = {
+            'static': [],
+            'gripper': [],
+            'pred_static': [],
+            'pred_gripper': [],
+        }
     unfinished = 0
     for step in range(ep_len):
         if unfinished == 0:
-            action = model.step(obs, lang_annotation)
+            output = model.step(obs, lang_annotation)
+            action = output['action_pred']
             unfinished = action.shape[0]
         obs, _, _, current_info = env.step(action[-unfinished])
         unfinished -= 1
         if debug:
-            img_copy = copy.deepcopy(obs['rgb_obs']['rgb_static'])
-            img_list.append(img_copy)
+            img_dict['static'].append(copy.deepcopy(obs['rgb_obs']['rgb_static']))
+            img_dict['gripper'].append(copy.deepcopy(obs['rgb_obs']['rgb_gripper']))
+            img_dict['pred_static'].append(copy.deepcopy(output['obs_preds'][0, -1].astype(np.uint8)))
+            img_dict['pred_gripper'].append(copy.deepcopy(output['obs_hand_preds'][0, -1].astype(np.uint8)))
         # check if current step solves a task
         current_task_info = task_oracle.get_task_info_for_set(start_info, current_info, {subtask})
         if len(current_task_info) > 0:
             if debug:
                 print(colored("success", "green"), end=" ")
-                clip = ImageSequenceClip(img_list, fps=30)
-                clip.write_gif(os.path.join(eval_dir, f'{sequence_i}-{subtask_i}-{subtask}-succ.gif'), fps=30)
+                for key in img_dict.keys():
+                    clip = ImageSequenceClip(img_dict[key], fps=30)
+                    clip.write_gif(os.path.join(eval_dir, f'{sequence_i}-{subtask_i}-{subtask}-{key}-succ.gif'), fps=30)
             return True
     if debug:
         print(colored("fail", "red"), end=" ")
-        clip = ImageSequenceClip(img_list, fps=30)
-        clip.write_gif(os.path.join(eval_dir, f'{sequence_i}-{subtask_i}-{subtask}-fail.gif'), fps=30)
+        for key in img_dict.keys():
+            clip = ImageSequenceClip(img_dict[key], fps=30)
+            clip.write_gif(os.path.join(eval_dir, f'{sequence_i}-{subtask_i}-{subtask}-{key}-fail.gif'), fps=30)
     return False
 
 
@@ -185,6 +195,8 @@ def main():
     model = GR1(
         model_clip,
         model_mae,
+        rgb_shape=cfg['rgb_shape'],
+        patch_size=cfg['patch_size'],
         state_dim=cfg['state_dim'],
         act_dim=cfg['act_dim'],
         hidden_size=cfg['embed_dim'],
@@ -201,7 +213,8 @@ def main():
             'num_latents': cfg['resampler_num_latents'],
             'num_media_embeds': cfg['resampler_num_media_embeds'],
         },
-        without_norm_pixel_loss=False,
+        without_norm_pixel_loss=cfg['without_norm_pixel_loss'],
+        skip_frame=cfg['skip_frame'],
         use_hand_rgb=True,
         n_layer=cfg['n_layer'],
         n_head=cfg['n_head'],
