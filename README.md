@@ -7,11 +7,7 @@ A variant of GR-1: "Unleashing Large-Scale Video Generative Pre-training for Vis
 
 **This variant has higher performance than the original implementation on the CALVIN benchmark (current SOTA on ABC->D scenario, I may test ABCD->D later) .** The details, data, multi-GPU training and evaluation code are fully open-source. 
 
-I will try to perform the Pre-training again with my version of [Droid dataset](https://huggingface.co/datasets/EDiRobotics/droid_low_resolution), which only has ~350 GB of size (after compression) and easy-to-use Huggingface or LMDB format. I am also working to merge this method to HuggingFace [LeRobot](https://github.com/huggingface/lerobot) library. 
-
-**After pre-trained on diverse video generation dataset, it can be used as a generalized policy easily by the community**:
-- Like [Octo](https://github.com/octo-models/octo), the `image query token` and the `action query token` will not influence other tokens, so the policy can be easily adapted to different action space or output. 
--  Unlike Octo, this policy is in pytorch. It's not a diffusion policy and the implementation is simpler. This policy is pretrained by video generation instead of action generation, so you can use much more Internet data!
+Another nice implementation on CALVIN benchmark is [MDT](https://github.com/intuitive-robots/mdt_policy), which uses a DiT action head + image language alignment loss + masked future image prediction. For differences between MDT and my GR-1 varients, please refer to this [issue](https://github.com/intuitive-robots/mdt_policy/issues/3).
 
 Please remember I build systems for you ヾ(^▽\^*)). Feel free to ask [me](zhuohengli@foxmail.com) if you have any question! 
 
