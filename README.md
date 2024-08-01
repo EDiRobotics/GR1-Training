@@ -15,6 +15,7 @@ Also star and cite this repository (and of course the original implementation) i
 
 ## News
 **[2024.7.31]** We also release [mimictest](https://github.com/EDiRobotics/mimictest), which includes RT-1, Diffusion Policy, and Florence policy on the robomimic benchmark. Florence policy is modified from Microsoft's Florence2 VLM, which is trained on 900M images with VQA, detection, segmentation, and OCR tasks. We add a linear action head or a diffusion transformer action head to it. Since Florence policy only contains 0.2/0.7B parameters, it's more light-weight than OpenVLA, RT-2, Roboflamingo, etc. 
+
 **[2024.7.10]** Now it can render the predicted videos. Here are some examples:
 
 | Real | Predicted |
