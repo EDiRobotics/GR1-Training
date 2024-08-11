@@ -9,7 +9,7 @@ A variant of GR-1: "Unleashing Large-Scale Video Generative Pre-training for Vis
 
 Another nice implementation on CALVIN benchmark is [MDT](https://github.com/intuitive-robots/mdt_policy), which uses a DiT action head + image language alignment loss + masked future image prediction. For differences between MDT and my GR-1 varients, please refer to this [issue](https://github.com/intuitive-robots/mdt_policy/issues/3).
 
-Please remember I build systems for you ヾ(^▽\^*)). Feel free to ask [me](zhuohengli@foxmail.com) if you have any question! 
+Please remember I build systems for you ヾ(^▽\^*)). Feel free to ask [@StarCycle](https://github.com/StarCycle) if you have any question! 
 
 Also star and cite this repository (and of course the original implementation) if you find it is helpful!
 
