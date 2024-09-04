@@ -3,6 +3,8 @@
 
 ![](README_md_files/aeb5db90-1cef-11ef-b8f1-596730d257b3.jpeg?v=1&type=image)
 
+Note: Bytedance releases GR-MG, which uses a image diffusion model to generate goal images for GR-1. They also release a pretrained GR-1 trained on Ego4D dataset only. Please see this [link](https://gr-mg.github.io/).
+
 A variant of GR-1: "Unleashing Large-Scale Video Generative Pre-training for Visual Robot Manipulation". It performs good on [CALVIN Manipulation Benchmark](http://calvin.cs.uni-freiburg.de/) without using depth information. The original implementation is [here](https://github.com/bytedance/GR-1) but there is no training script.
 
 **This variant has higher performance than the original implementation on the CALVIN benchmark (current SOTA on ABC->D scenario, I may test ABCD->D later) .** The details, data, multi-GPU training and evaluation code are fully open-source. 
